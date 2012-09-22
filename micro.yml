@@ -1,0 +1,34 @@
+---
+name: micro01		#the same name as your folder name
+#XXX using micro01
+network:
+  ip: 10.60.98.124  		#define ip for micro BOSH
+  netmask: 255.255.255.0
+  gateway: 10.60.98.1
+  dns:
+  - 10.40.62.11
+  - 10.135.12.101
+  cloud_properties:
+    name: VM Network	#this should be the same as the “Network” of all your virtual machines	
+cloud:
+  plugin: vsphere
+  properties:
+    agent:
+      ntp:
+       - time.windows.com
+       - ntp02.las01.emcatmos.com
+    vcenters:
+      - host: 10.60.98.126		# ip address of vCenter 
+        user: Administrator		#user of vCenter
+        password: <vCenterPassword>
+        datacenters:
+          - name: vDataCenter	#name of the datacenter you created
+            vm_folder: vm_folder	#folder for vms
+            template_folder: template_folder	#folder for templates
+            disk_path: boshdeployer		#disk path where VMs are stored.
+            datastore_pattern: NFSdatastore	#name of a datastore or some regular expression matching the datastore name.
+            persistent_datastore_pattern: NFSdatastore	#name of a datastore or some regular expression matching the persistent datastore
+            allow_mixed_datastores: true     #true if two datastore patterns are the same
+            clusters:
+              - vCluster 	#name of your cluster in your datacenter
+	    resource_pool:  <resource_pool_name> # Resource pool is optional you can run without a resource pool. If so, remove this line.
