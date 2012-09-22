@@ -1,0 +1,680 @@
+---
+name: cf.local
+director_uuid: a422915d-e475-476d-92be-dcb9b89e453c
+
+release:
+  name: cflab
+  version: 92.1-dev
+
+compilation:
+  workers: 3
+  network: default
+  cloud_properties:
+    ram: 4096
+    disk: 8096
+    cpu: 4
+
+update:
+  canaries: 1
+  canary_watch_time: 3000-90000
+  update_watch_time: 3000-90000
+  max_in_flight: 1
+  max_errors: 1
+
+networks:
+
+- name: default
+  subnets:
+  - range: 10.60.98.0/24
+    reserved:
+    - 10.60.98.112 - 10.60.98.254
+    static:
+    - 10.60.98.51 - 10.60.98.100
+    gateway: 10.60.98.1
+    dns:
+    - 10.60.98.126
+    - 10.40.62.11
+    - 10.135.12.101
+    cloud_properties:
+      name: VM Network
+
+resource_pools:
+
+- name: small
+  network: default
+  size: 30
+  stemcell:
+    name: bosh-stemcell
+    version: 0.6.4
+  cloud_properties:
+    ram: 1024
+    disk: 8192
+    cpu: 1
+  env:
+    bosh:
+      password: $6$3BMC8bQ0$izpxW02mmcxUvxbW1vaMZV62sizWPR66G8KC1NuGVqyOPLsJNDqJhKvjPOwuHdqu8Vurhf3JhDlLSzPjFw9LF1
+      # c1oudc0w - password generated using mkpasswd -m sha-512
+
+- name: medium
+  network: default
+  size: 4
+  stemcell:
+    name: bosh-stemcell
+    version: 0.6.4
+  cloud_properties:
+    ram: 2048
+    disk: 16384
+    cpu: 2
+  env:
+    bosh:
+      password: $6$3BMC8bQ0$izpxW02mmcxUvxbW1vaMZV62sizWPR66G8KC1NuGVqyOPLsJNDqJhKvjPOwuHdqu8Vurhf3JhDlLSzPjFw9LF1
+      # c1oudc0w - password generated using mkpasswd -m sha-512
+
+- name: router
+  network: default
+  size: 2
+  stemcell:
+    name: bosh-stemcell
+    version: 0.6.4
+  cloud_properties:
+    ram: 512
+    disk: 8192
+    cpu: 1
+  env:
+    bosh:
+      password: $6$3BMC8bQ0$izpxW02mmcxUvxbW1vaMZV62sizWPR66G8KC1NuGVqyOPLsJNDqJhKvjPOwuHdqu8Vurhf3JhDlLSzPjFw9LF1
+      # c1oudc0w - password generated using mkpasswd -m sha-512
+
+- name: mysql
+  network: default
+  size: 1
+  stemcell:
+    name: bosh-stemcell
+    version: 0.6.4
+  cloud_properties:
+    ram: 4096
+    disk: 8192
+    cpu: 1
+  env:
+    bosh:
+      password: $6$3BMC8bQ0$izpxW02mmcxUvxbW1vaMZV62sizWPR66G8KC1NuGVqyOPLsJNDqJhKvjPOwuHdqu8Vurhf3JhDlLSzPjFw9LF1
+
+jobs:
+
+- name: debian_nfs_server
+  template: debian_nfs_server
+  instances: 1
+  resource_pool: medium
+  persistent_disk: 16384
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.51
+
+- name: services_nfs
+  template: debian_nfs_server
+  instances: 1
+  resource_pool: small
+  persistent_disk: 8192
+  properties:
+    debian_nfs_server:
+      no_root_squash: true
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.82 # Enter a static IP
+
+- name: syslog_aggregator
+  template: syslog_aggregator
+  instances: 1
+  resource_pool: small
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.83 # Enter a static IP
+
+- name: nats
+  template: nats
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.52
+
+- name: opentsdb
+  template: opentsdb
+  instances: 1
+  resource_pool: small
+  persistent_disk: 8192
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.85 # Enter a static IP
+
+- name: collector
+  template: collector
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default # No static IP required here
+    static_ips:
+    - 10.60.98.86
+
+- name: dashboard
+  template: dashboard
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default # No static IP required here
+    static_ips:
+    - 10.60.98.87
+
+- name: ccdb
+  template: postgres
+  properties:
+    db: ccdb
+  instances: 1
+  resource_pool: small
+  persistent_disk: 8192
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.53
+
+- name: uaadb
+  template: postgres
+  properties:
+    db: uaadb
+  instances: 1
+  resource_pool: small
+  persistent_disk: 8192
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.54
+
+- name: vcap_redis
+  template: vcap_redis
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.55
+
+- name: services_redis
+  template: vcap_redis
+  instances: 1
+  resource_pool: small
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.84 # Enter a static IP.
+  properties:
+    vcap_redis:
+      port: 3456
+      password: passwordpassword01
+      maxmemory: 2000000000
+      persistence:
+        dir: /var/vcap/store/vcap_redis
+
+- name: uaa
+  template: uaa
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.56
+
+- name: acmdb
+  template: postgres
+  properties:
+     db: acmdb
+  instances: 1
+  resource_pool: small
+  persistent_disk: 8192
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.57  # Enter a static IP.
+
+- name: acm
+  template: acm
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.58   # Enter a static IP.
+
+- name: cloud_controller
+  template: cloud_controller
+  instances: 1
+  resource_pool: medium
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.59
+
+- name: stager
+  template: stager
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.60
+
+- name: router
+  template: router
+  instances: 2
+  resource_pool: router
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.61
+    - 10.60.98.62
+    default: [dns, gateway]
+  #- name: lb
+  #  static_ips:
+  #  - 192.168.0.2 - 192.168.0.2
+
+- name: health_manager
+  template: health_manager
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.63
+
+- name: health_manager_next
+  template: health_manager_next
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.64
+
+- name: dea
+  template: dea
+  instances: 2
+  resource_pool: medium
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.65
+    - 10.60.98.66
+
+- name: mysql_node
+  template: mysql_node
+  instances: 1
+  resource_pool: mysql
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.67 # Enter a static IP for each instance.
+
+- name: mysql_gateway
+  template: mysql_gateway
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default           # No static IP required here
+    static_ips:
+    - 10.60.98.68
+
+- name: mongodb_node
+  template: mongodb_node
+  instances: 1
+  resource_pool: small
+  persistent_disk: 4096
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.69 # Enter a static IP for each instance.
+
+- name: mongodb_gateway
+  template: mongodb_gateway
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default          # No static IP required here
+    static_ips:
+    - 10.60.98.70
+
+- name: redis_node
+  template: redis_node
+  instances: 1
+  resource_pool: small
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.71 # Enter a static IP for each instance.
+
+- name: redis_gateway
+  template: redis_gateway
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default           # No static IP required here
+    static_ips:
+    - 10.60.98.72
+
+- name: rabbit_node
+  template: rabbit_node
+  instances: 1
+  resource_pool: small
+  persistent_disk: 4096
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.73 # Enter a static IP for each instance.
+
+- name: rabbit_gateway
+  template: rabbit_gateway
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default           # No static IP required here
+    static_ips:
+    - 10.60.98.74
+
+- name: postgresql_node
+  template: postgresql_node
+  instances: 1
+  resource_pool: small
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.75 # Enter a static IP for each instance.
+
+- name: postgresql_gateway
+  template: postgresql_gateway
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default          # No static IP required here
+    static_ips:
+    - 10.60.98.76
+
+- name: vblob_node
+  template: vblob_node
+  instances: 1
+  resource_pool: small
+  persistent_disk: 1024
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.77            # Enter a static IP.
+
+- name: vblob_gateway
+  template: vblob_gateway
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default          # No static IP required here
+    static_ips:
+    - 10.60.98.78
+
+- name: backup_manager
+  template: backup_manager
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.79            # Enter a static IP.
+
+- name: service_utilities
+  template: service_utilities
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.60.98.80            # Enter a static IP
+
+- name: serialization_data_server
+  template: serialization_data_server
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default          # No static IP required here
+    static_ips:
+    - 10.60.98.81
+
+properties:
+  domain: cf.local
+
+  env:
+
+  networks:
+    apps: default
+    management: default
+
+  nats:
+    user: root
+    password: passwordpassword01
+    address: 10.60.98.52
+    port: 4222
+
+  ccdb:
+    address: 10.60.98.53
+    port: 5524
+    pool_size: 10
+    roles:
+    - tag: admin
+      name: root
+      password: passwordpassword01
+    databases:
+    - tag: cc
+      name: appcloud
+
+  uaadb:
+    address: 10.60.98.54
+    port: 2544
+    roles:
+    - tag: admin
+      name: root
+      password: passwordpassword01
+    databases:
+    - tag: uaa
+      name: uaa
+
+  acmdb:
+    address: 10.60.98.57
+    port: 2544
+    roles:
+    - tag: admin
+      name: root
+      password: passwordpassword01
+    databases:
+    - tag: acm
+      name: acm
+
+  cc:
+    srv_api_uri: http://api.cf.local
+    password: passwordpassword01
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    use_nginx: true
+    new_stager_percent: 100
+    new_stager_email_regexp: '.*@vmware.com'
+    staging_upload_user: root
+    staging_upload_password: passwordpassword01
+    allow_registration: true
+    uaa:
+      enabled: true
+      resource_id: cloud_controller
+      token_creation_email_filter: vmware.com
+    admins:
+    - admin@vmware.com
+
+  vcap_redis:
+    address: 10.60.98.55
+    port: 5454
+    password: passwordpassword01
+    maxmemory: 2000000000 # 2GB
+
+  router:
+    status:
+      port: 8080
+      user: root
+      password: passwordpassword01
+
+  dashboard:
+    users:
+      - [root, admin]
+
+  dea:
+    max_memory: 4096
+
+  nfs_server:
+    address: 10.60.98.51
+    network: 10.60.98.0/24
+
+  opentsdb:
+    address: 10.60.98.85
+    port: 4242
+
+  stager:
+    max_staging_duration: 120
+    max_active_tasks: 20
+    queues:
+    - staging
+
+  service_plans:
+    mysql:
+      free:
+        job_management:
+          high_water: 1400
+          low_water: 100
+        configuration:
+          allow_over_provisioning: true
+          capacity: 200
+          max_db_size: 128
+          max_long_query: 3
+          max_long_tx: 0
+          max_clients: 20
+    postgresql:
+      free:
+        job_management:
+          high_water: 1400
+          low_water: 100
+        configuration:
+          capacity: 200
+          max_db_size: 128
+          max_long_query: 3
+          max_long_tx: 30
+          max_clients: 20
+    mongodb:
+      free:
+        job_management:
+          high_water: 3000
+          low_water: 100
+        configuration:
+          allow_over_provisioning: true
+          capacity: 200
+          quota_files: 4
+          max_clients: 500
+    redis:
+      free:
+        job_management:
+          high_water: 1400
+          low_water: 100
+        configuration:
+          capacity: 200
+          max_memory: 16
+          max_swap: 32
+          max_clients: 500
+    rabbit:
+      free:
+        job_management:
+          low_water: 100
+          high_water: 1400
+        configuration:
+          max_memory_factor: 0.5
+          max_clients: 512
+          capacity: 200
+    vblob:
+      free:
+        job_management:
+          low_water: 100
+          high_water: 1400
+        configuration:
+          capacity: 200
+
+  service_lifecycle:
+    download_url: service-serialization.cf.local # Modify this url for your environment
+    mount_point: /var/vcap/service_lifecycle
+    tmp_dir: /var/vcap/service_lifecycle/tmp_dir
+    resque:
+      host: 10.60.98.84    # Change this IP address
+      port: 3456
+      password: passwordpassword01 # Create a secure password
+    nfs_server:
+      address: 10.60.98.82 # Change this IP address
+      export_dir: /var/vcap/store/shared
+
+  mysql_gateway:
+    check_orphan_interval: 7200
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+  mysql_node:
+    production: true	# if true, the VM should have at least 4GB RAM
+    password: $6$3BMC8bQ0$izpxW02mmcxUvxbW1vaMZV62sizWPR66G8KC1NuGVqyOPLsJNDqJhKvjPOwuHdqu8Vurhf3JhDlLSzPjFw9LF1
+
+  redis_gateway:
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    check_orphan_interval: 7200
+  redis_node:
+    command_rename_prefix: sample
+
+  mongodb_gateway:
+  mongodb_node:
+  rabbit_gateway:
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    check_orphan_interval: 7200
+  rabbit_node:
+    {}
+
+  postgresql_gateway:
+    check_orphan_interval: 7200
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+  postgresql_node:
+    production: true
+
+  vblob_gateway:
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7     # Change this to your own token string
+    acls:
+      wildcards: [*@cf.local]
+  vblob_node:
+    vblobd_auth: s3
+    nfs_server:
+      address: 10.60.98.82 # Change this IP address. It should reference your services_nfs server.
+      export_dir: /var/vcap/store/shared
+
+  syslog_aggregator:
+    address: 10.60.98.83
+    port: 54321
+
+  uaa:
+    cc:
+      token_secret: aaabxaiC371JM     # Create your own token secret
+      client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret       
+    admin:
+      client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret          
+    batch:
+      username: root  # Create a username
+      password: passwordpassword01 # Create a password
+
+  acm:
+    user: root
+    password: passwordpassword01
