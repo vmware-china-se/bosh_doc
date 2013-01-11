@@ -1,10 +1,10 @@
 ---
 name: cf.local
-director_uuid: a422915d-e475-476d-92be-dcb9b89e453c
+director_uuid: e923d26c-1623-4365-8de6-1b64b8da999a
 
 release:
-  name: cflab
-  version: 92.1-dev
+  name: cf-dev
+  version: 120.1-dev
 
 compilation:
   workers: 3
@@ -25,14 +25,14 @@ networks:
 
 - name: default
   subnets:
-  - range: 10.60.98.0/24
+  - range: 10.40.97.0/24
     reserved:
-    - 10.60.98.112 - 10.60.98.254
+    - 10.40.97.112 - 10.40.97.254
     static:
-    - 10.60.98.51 - 10.60.98.100
-    gateway: 10.60.98.1
+    - 10.40.97.51 - 10.40.97.110
+    gateway: 10.40.97.1
     dns:
-    - 10.60.98.126
+    - 10.40.97.126
     - 10.40.62.11
     - 10.135.12.101
     cloud_properties:
@@ -42,7 +42,7 @@ resource_pools:
 
 - name: small
   network: default
-  size: 30
+  size: 33
   stemcell:
     name: bosh-stemcell
     version: 0.6.4
@@ -109,7 +109,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.51
+    - 10.40.97.51
 
 - name: services_nfs
   template: debian_nfs_server
@@ -122,7 +122,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.82 # Enter a static IP
+    - 10.40.97.82 # Enter a static IP
 
 - name: syslog_aggregator
   template: syslog_aggregator
@@ -132,7 +132,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.83 # Enter a static IP
+    - 10.40.97.83 # Enter a static IP
 
 - name: nats
   template: nats
@@ -141,7 +141,27 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.52
+    - 10.40.97.52
+
+- name: hbase_slave
+  template: hbase_slave
+  instances: 1
+  resource_pool: small
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.40.97.99
+
+- name: hbase_master
+  template: hbase_master
+  instances: 1
+  resource_pool: small
+  persistent_disk: 2048
+  networks:
+  - name: default
+    static_ips:
+    - 10.40.97.93
 
 - name: opentsdb
   template: opentsdb
@@ -151,7 +171,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.85 # Enter a static IP
+    - 10.40.97.85 # Enter a static IP
 
 - name: collector
   template: collector
@@ -160,7 +180,7 @@ jobs:
   networks:
   - name: default # No static IP required here
     static_ips:
-    - 10.60.98.86
+    - 10.40.97.86
 
 - name: dashboard
   template: dashboard
@@ -169,7 +189,7 @@ jobs:
   networks:
   - name: default # No static IP required here
     static_ips:
-    - 10.60.98.87
+    - 10.40.97.87
 
 - name: ccdb
   template: postgres
@@ -181,7 +201,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.53
+    - 10.40.97.53
 
 - name: uaadb
   template: postgres
@@ -193,7 +213,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.54
+    - 10.40.97.54
 
 - name: vcap_redis
   template: vcap_redis
@@ -202,7 +222,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.55
+    - 10.40.97.55
 
 - name: services_redis
   template: vcap_redis
@@ -212,7 +232,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.84 # Enter a static IP.
+    - 10.40.97.84 # Enter a static IP.
   properties:
     vcap_redis:
       port: 3456
@@ -228,7 +248,16 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.56
+    - 10.40.97.56
+
+- name: login
+  template: login
+  instances: 1
+  resource_pool: small
+  networks:
+  - name: default
+    static_ips:
+    - 10.40.97.91
 
 - name: acmdb
   template: postgres
@@ -240,7 +269,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.57  # Enter a static IP.
+    - 10.40.97.57  # Enter a static IP.
 
 - name: acm
   template: acm
@@ -249,7 +278,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.58   # Enter a static IP.
+    - 10.40.97.58   # Enter a static IP.
 
 - name: cloud_controller
   template: cloud_controller
@@ -258,7 +287,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.59
+    - 10.40.97.59
 
 - name: stager
   template: stager
@@ -267,7 +296,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.60
+    - 10.40.97.60
 
 - name: router
   template: router
@@ -276,30 +305,21 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.61
-    - 10.60.98.62
+    - 10.40.97.61
+    - 10.40.97.62
     default: [dns, gateway]
   #- name: lb
   #  static_ips:
   #  - 192.168.0.2 - 192.168.0.2
 
 - name: health_manager
-  template: health_manager
-  instances: 1
-  resource_pool: small
-  networks:
-  - name: default
-    static_ips:
-    - 10.60.98.63
-
-- name: health_manager_next
   template: health_manager_next
   instances: 1
   resource_pool: small
   networks:
   - name: default
     static_ips:
-    - 10.60.98.64
+    - 10.40.97.63
 
 - name: dea
   template: dea
@@ -308,8 +328,8 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.65
-    - 10.60.98.66
+    - 10.40.97.65
+    - 10.40.97.66
 
 - name: mysql_node
   template: mysql_node
@@ -319,7 +339,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.67 # Enter a static IP for each instance.
+    - 10.40.97.67 # Enter a static IP for each instance.
 
 - name: mysql_gateway
   template: mysql_gateway
@@ -328,7 +348,7 @@ jobs:
   networks:
   - name: default           # No static IP required here
     static_ips:
-    - 10.60.98.68
+    - 10.40.97.68
 
 - name: mongodb_node
   template: mongodb_node
@@ -338,7 +358,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.69 # Enter a static IP for each instance.
+    - 10.40.97.69 # Enter a static IP for each instance.
 
 - name: mongodb_gateway
   template: mongodb_gateway
@@ -347,7 +367,7 @@ jobs:
   networks:
   - name: default          # No static IP required here
     static_ips:
-    - 10.60.98.70
+    - 10.40.97.70
 
 - name: redis_node
   template: redis_node
@@ -357,7 +377,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.71 # Enter a static IP for each instance.
+    - 10.40.97.71 # Enter a static IP for each instance.
 
 - name: redis_gateway
   template: redis_gateway
@@ -366,7 +386,7 @@ jobs:
   networks:
   - name: default           # No static IP required here
     static_ips:
-    - 10.60.98.72
+    - 10.40.97.72
 
 - name: rabbit_node
   template: rabbit_node
@@ -376,7 +396,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.73 # Enter a static IP for each instance.
+    - 10.40.97.73 # Enter a static IP for each instance.
 
 - name: rabbit_gateway
   template: rabbit_gateway
@@ -385,7 +405,7 @@ jobs:
   networks:
   - name: default           # No static IP required here
     static_ips:
-    - 10.60.98.74
+    - 10.40.97.74
 
 - name: postgresql_node
   template: postgresql_node
@@ -395,7 +415,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.75 # Enter a static IP for each instance.
+    - 10.40.97.75 # Enter a static IP for each instance.
 
 - name: postgresql_gateway
   template: postgresql_gateway
@@ -404,7 +424,7 @@ jobs:
   networks:
   - name: default          # No static IP required here
     static_ips:
-    - 10.60.98.76
+    - 10.40.97.76
 
 - name: vblob_node
   template: vblob_node
@@ -414,7 +434,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.77            # Enter a static IP.
+    - 10.40.97.77            # Enter a static IP.
 
 - name: vblob_gateway
   template: vblob_gateway
@@ -423,7 +443,7 @@ jobs:
   networks:
   - name: default          # No static IP required here
     static_ips:
-    - 10.60.98.78
+    - 10.40.97.78
 
 - name: backup_manager
   template: backup_manager
@@ -432,7 +452,7 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.79            # Enter a static IP.
+    - 10.40.97.79            # Enter a static IP.
 
 - name: service_utilities
   template: service_utilities
@@ -441,16 +461,16 @@ jobs:
   networks:
   - name: default
     static_ips:
-    - 10.60.98.80            # Enter a static IP
+    - 10.40.97.80            # Enter a static IP
 
 - name: serialization_data_server
   template: serialization_data_server
   instances: 1
   resource_pool: small
   networks:
-  - name: default          # No static IP required here
+  - name: default
     static_ips:
-    - 10.60.98.81
+    - 10.40.97.81
 
 properties:
   domain: cf.local
@@ -464,11 +484,11 @@ properties:
   nats:
     user: root
     password: passwordpassword01
-    address: 10.60.98.52
+    address: 10.40.97.52
     port: 4222
 
   ccdb:
-    address: 10.60.98.53
+    address: 10.40.97.53
     port: 5524
     pool_size: 10
     roles:
@@ -480,7 +500,7 @@ properties:
       name: appcloud
 
   uaadb:
-    address: 10.60.98.54
+    address: 10.40.97.54
     port: 2544
     roles:
     - tag: admin
@@ -491,7 +511,7 @@ properties:
       name: uaa
 
   acmdb:
-    address: 10.60.98.57
+    address: 10.40.97.57
     port: 2544
     roles:
     - tag: admin
@@ -511,15 +531,17 @@ properties:
     staging_upload_user: root
     staging_upload_password: passwordpassword01
     allow_registration: true
+    logging_level: debug
     uaa:
       enabled: true
       resource_id: cloud_controller
       token_creation_email_filter: vmware.com
     admins:
-    - admin@vmware.com
+    - admin1@vmware.com
+    - admin2@vmware.com
 
   vcap_redis:
-    address: 10.60.98.55
+    address: 10.40.97.55
     port: 5454
     password: passwordpassword01
     maxmemory: 2000000000 # 2GB
@@ -531,25 +553,47 @@ properties:
       password: passwordpassword01
 
   dashboard:
+    uaa:
+      client_id: dashboard
+      client_secret: passwordpassword01
     users:
       - [root, admin]
 
   dea:
     max_memory: 4096
 
+  dea_next:
+    memory_mb: 8192
+    memory_overcommit_factor: 4
+    disk_mb: 16384
+    disk_overcommit_factor: 4
+    num_instances: 256
+
   nfs_server:
-    address: 10.60.98.51
-    network: 10.60.98.0/24
+    address: 10.40.97.51
+    network: 10.40.97.0/24
+
+  hbase_master:
+    address: 10.40.97.93
+    hbase_master:
+      port: 60000
+      webui_port: 60010
+      heap_size: 1024
+    hbase_zookeeper:
+      heap_size: 1024
+    hadoop_namenode:
+      port: 9000
 
   opentsdb:
-    address: 10.60.98.85
+    address: 10.40.97.85
     port: 4242
 
-  stager:
-    max_staging_duration: 120
-    max_active_tasks: 20
-    queues:
-    - staging
+  hbase_slave:
+    hbase_regionserver:
+      port: 60020
+      heap_size: 1024
+    addresses:
+    - 10.40.97.99
 
   service_plans:
     mysql:
@@ -612,69 +656,136 @@ properties:
         configuration:
           capacity: 200
 
+  serialization_data_server:
+    upload_token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    use_nginx: true
+    upload_timeout: 10
+    port: 8080
+    upload_file_expire_time: 600
+    purge_expired_interval: 30
+
   service_lifecycle:
     download_url: service-serialization.cf.local # Modify this url for your environment
     mount_point: /var/vcap/service_lifecycle
     tmp_dir: /var/vcap/service_lifecycle/tmp_dir
     resque:
-      host: 10.60.98.84    # Change this IP address
+      host: 10.40.97.84    # Change this IP address
       port: 3456
       password: passwordpassword01 # Create a secure password
     nfs_server:
-      address: 10.60.98.82 # Change this IP address
+      address: 10.40.97.82 # Change this IP address
       export_dir: /var/vcap/store/shared
+    serialization_data_server:
+    - 10.40.97.81
 
   mysql_gateway:
     check_orphan_interval: 7200
     token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    supported_versions: ["5.1"]
+    version_aliases:
+      current: "5.1"
+
   mysql_node:
-    production: true	# if true, the VM should have at least 4GB RAM
+    production: true
     password: $6$3BMC8bQ0$izpxW02mmcxUvxbW1vaMZV62sizWPR66G8KC1NuGVqyOPLsJNDqJhKvjPOwuHdqu8Vurhf3JhDlLSzPjFw9LF1
+    supported_versions: ["5.1"]
+    default_version: "5.1"
 
   redis_gateway:
     token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
     check_orphan_interval: 7200
+    supported_versions: ["2.2", "2.4", "2.6"]
+    version_aliases:
+      current: "2.2"
+      next: "2.6"
   redis_node:
     command_rename_prefix: sample
+    supported_versions: ["2.2", "2.4", "2.6"]
+    default_version: "2.2"
 
   mongodb_gateway:
+    check_orphan_interval: 7200
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    supported_versions: ["1.8", "2.0"]
+    version_aliases:
+      current: "2.0"
+      deprecated: "1.8"
+
   mongodb_node:
+    supported_versions: ["1.8", "2.0"]
+    default_version: "1.8"
+
   rabbit_gateway:
     token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
     check_orphan_interval: 7200
+    supported_versions: ["2.4"]
+    version_aliases:
+      current: "2.4"
   rabbit_node:
-    {}
+    supported_versions: ["2.4"]
+    default_version: "2.4"
 
   postgresql_gateway:
     check_orphan_interval: 7200
     token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    supported_versions: ["9.0"]
+    version_aliases:
+      current: "9.0"
   postgresql_node:
     production: true
+    supported_versions: ["9.0"]
+    default_version: "9.0"
 
   vblob_gateway:
     token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7     # Change this to your own token string
     acls:
       wildcards: [*@cf.local]
+    supported_versions: ["0.51"]
+    version_aliases:
+      current: "0.51"
   vblob_node:
     vblobd_auth: s3
     nfs_server:
-      address: 10.60.98.82 # Change this IP address. It should reference your services_nfs server.
+      address: 10.40.97.82 # Change this IP address. It should reference your services_nfs server.
       export_dir: /var/vcap/store/shared
+    supported_versions: ["0.51"]
+    default_version: "0.51"
 
   syslog_aggregator:
-    address: 10.60.98.83
+    address: 10.40.97.83
     port: 54321
 
+  stager:
+    max_staging_duration: 120
+    max_active_tasks: 20
+    queues:
+    - staging
+
   uaa:
+    catalina_opts: -Xmx768m -XX:MaxPermSize=256m
     cc:
       token_secret: aaabxaiC371JM     # Create your own token secret
       client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret       
-    admin:
-      client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret          
-    batch:
-      username: root  # Create a username
-      password: passwordpassword01 # Create a password
+    clients:
+      dashboard:
+        secret: passwordpassword01
+        scope: openid,dashboard.user
+        authorities: uaa.admin,uaa.resource,tokens.read,scim.read,scim.write
+        authorized-grant-types: client_credentials,authorization_code,refresh_token
+      admin:
+        client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret          
+      login:
+        client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK
+      batch:
+        username: root  # Create a username
+        password: passwordpassword01 # Create a password
+  scim:
+    users:
+    - root|admin|openid,dashboard.user
 
   acm:
     user: root
     password: passwordpassword01
+
+  login:
+    protocol: http

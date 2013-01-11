@@ -10,6 +10,12 @@ network:
   - 10.135.12.101
   cloud_properties:
     name: VM Network	#this should be the same as the “Network” of all your virtual machines	
+resources:
+  persistent_disk: 16384
+  cloud_properties:
+    ram: 4096
+    disk: 16384
+    cpu: 2
 cloud:
   plugin: vsphere
   properties:
