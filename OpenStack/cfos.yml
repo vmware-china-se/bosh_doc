@@ -1,0 +1,591 @@
+---
+name: cfos
+director_uuid: 7928650b-e4c7-40b7-960d-424748851b5f
+
+release:
+  name: appcloud
+  version: 127
+
+compilation:
+  workers: 3
+  network: default
+  reuse_compilation_vms: true
+  cloud_properties:
+    instance_type: m1.compile
+
+update:
+  canaries: 1
+  canary_watch_time: 3000-90000
+  update_watch_time: 3000-90000
+  max_in_flight: 1
+  max_errors: 1
+
+networks:
+- name: floating
+  type: vip
+  cloud_properties:
+    security_groups:
+    - default
+    
+- name: default
+  type: dynamic
+  dns:
+  - 10.40.97.20       #Change to bosh powerdns ip
+  cloud_properties:
+    security_groups:
+    - default 
+   
+cloud:
+  plugin: openstack
+  properties:
+    openstack:
+      auth_url: http://10.40.97.30:5000/v2.0/tokens
+      username: admin
+      api_key:  admin
+      tenant:   admin
+      default_key_name: inception
+      default_security_groups: ["default"]
+      private_key: /home/vcap/.ssh/inception.pem
+
+resource_pools:
+
+- name: infrastructure
+  network: default
+  size: 27
+  stemcell:
+    name: bosh-stemcell
+    version: 0.7.0
+  cloud_properties:
+    instance_type: m1.micro
+  env:
+    bosh:
+      password: $6$7E6WyCXtB1OZqR8$.vXKqzjCc4XHbYksZQmji718XWoOvuBBGy8dsloKFfaZ8pe1ecs4dCkcfigoAI80xeaG8s1.ZenwBIR3xcNdQ0
+      # password - password generated using mkpasswd -m sha-512
+
+jobs:
+
+- name: debian_nfs_server
+  template: debian_nfs_server
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 8192
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.22
+
+- name: services_nfs
+  template: debian_nfs_server
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 8192
+  properties:
+    debian_nfs_server:
+      no_root_squash: true
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.23
+
+- name: syslog_aggregator
+  template: syslog_aggregator
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 8192
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.24
+
+- name: nats
+  template: nats
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.25
+
+- name: hbase_slave
+  template: hbase_slave
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.26
+
+- name: hbase_master
+  template: hbase_master
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.27
+
+- name: opentsdb
+  template: opentsdb
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 8192
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.28
+
+- name: collector
+  template: collector
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: dashboard
+  template: dashboard
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: ccdb
+  template: postgres
+  properties:
+    db: ccdb
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.29
+
+- name: uaadb
+  template: postgres
+  properties:
+    db: uaadb
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.33
+
+- name: vcap_redis
+  template: vcap_redis
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.34
+
+- name: services_redis
+  template: vcap_redis
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.35
+  properties:
+    vcap_redis:
+      port: 3456
+      password: aaaFXngo
+      maxmemory: 2000000000
+      persistence:
+        dir: /var/vcap/store/vcap_redis
+
+- name: uaa
+  template: uaa
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: login
+  template: login
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: acmdb
+  template: postgres
+  properties:
+    db: acmdb
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.36
+
+- name: acm
+  template: acm
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.37
+
+- name: cloud_controller
+  template: cloud_controller
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: stager
+  template: stager
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: router
+  template: router
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.38
+
+- name: health_manager
+  template: health_manager_next
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.39
+
+- name: dea
+  template: dea
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+
+- name: postgresql_node
+  template: postgresql_node
+  instances: 1
+  resource_pool: infrastructure
+  persistent_disk: 2048
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.43
+
+- name: postgresql_gateway
+  template: postgresql_gateway
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.44
+
+- name: backup_manager
+  template: backup_manager
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.40
+
+- name: service_utilities
+  template: service_utilities
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.41
+
+- name: serialization_data_server
+  template: serialization_data_server
+  instances: 1
+  resource_pool: infrastructure
+  networks:
+  - name: default
+    default: [dns, gateway]
+  - name: floating
+    static_ips:
+    - 10.40.97.42
+
+properties:
+  domain: cf.os
+
+  env:
+
+  networks:
+    apps: default
+    management: default
+
+  nats:
+    user: nats
+    password: aaa3ij3122
+    address: 10.40.97.25
+    port: 4222
+  
+  ccdb:
+    address: 10.40.97.29
+    port: 5524
+    pool_size: 10
+    roles:
+    - tag: admin
+      name: ccadmin
+      password: aaaBauWauZZb2
+    databases:
+    - tag: cc
+      name: appcloud
+
+  uaadb:
+    address: 10.40.97.33
+    port: 2544
+    roles:
+    - tag: admin
+      name: uaaadmin
+      password: aaaDFsddfwer23223wdfWEF
+    databases:
+    - tag: uaa
+      name: uaa
+
+  acmdb:
+    address: 10.40.97.36
+    port: 2544
+    roles:
+    - tag: admin
+      name: root
+      password: aaa0rBVCCDcMlkpQ0SrE9XUj
+    databases:
+    - tag: acm
+      name: acm
+
+  cc:
+    srv_api_uri: http://api.cf.os
+    password: aaauuLaap44jadlas2l312lk
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    use_nginx: true
+    new_stager_percent: 100
+    new_stager_email_regexp: '.*@vmware.com'
+    staging_upload_user: aaafhgjg
+    staging_upload_password: aaafdase9
+    allow_registration: true
+    logging_level: debug
+    uaa:
+      enabled: true
+      resource_id: cloud_controller
+      token_creation_email_filter: vmware.com
+    admins:
+    - chenshi@vmware.com
+
+  vcap_redis:
+    address: 10.40.97.34
+    port: 5454
+    password: aaaxbL98RWpwBuUJvKNojnpIcRb1ot2
+    maxmemory: 2000000000 # 2GB
+
+  router:
+    status:
+      port: 8080
+      user: aaaUxXlS0pc71wVef
+      password: aaamaIf9vPV4mJyBe
+
+  dashboard:
+    uaa:
+      client_id: dashboard
+      client_secret: passwordpassword01
+    users:
+      - [b29, admin]
+
+  dea:
+    max_memory: 4096
+
+  nfs_server:
+    address: 10.40.97.22
+    network: 10.40.97.0/24
+
+  hbase_master:
+    address: 10.40.97.27
+    hbase_master:
+      port: 60000
+      webui_port: 60010
+      heap_size: 1024
+    hbase_zookeeper:
+      heap_size: 1024
+    hadoop_namenode:
+      port: 9000
+
+  opentsdb:
+    address: 10.40.97.28
+    port: 4242
+
+  hbase_slave:
+    hbase_regionserver:
+      port: 60020
+      heap_size: 1024
+    addresses:
+    - 10.40.97.26
+
+  service_plans:
+    postgresql:
+      free:
+        job_management:
+          high_water: 1400
+          low_water: 100
+        configuration:
+          capacity: 200
+          max_db_size: 128
+          max_long_query: 3
+          max_long_tx: 30
+          max_clients: 20
+
+  serialization_data_server:
+    upload_token: aaaCOGvTlXT7l8IzAgOHxMXurBrG364k
+    use_nginx: true
+    upload_timeout: 10
+    port: 8080
+    upload_file_expire_time: 600
+    purge_expired_interval: 30
+
+  service_lifecycle:
+    download_url: service-serialization.cf.os
+    mount_point: /var/vcap/service_lifecycle
+    tmp_dir: /var/vcap/service_lifecycle/tmp_dir
+    resque:
+      host: 10.40.97.35
+      port: 3456
+      password: aaaFXngo
+    nfs_server:
+      address: 10.40.97.23
+      export_dir: /var/vcap/store/shared
+    serialization_data_server:
+    - 10.40.97.42
+
+  mysql_gateway:
+    check_orphan_interval: 7200
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    supported_versions: ["5.1"]
+    version_aliases:
+      current: "5.1"
+
+  redis_gateway:
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    check_orphan_interval: 7200
+    supported_versions: ["2.2", "2.4", "2.6"]
+    version_aliases:
+      current: "2.2"
+      next: "2.6"
+
+  mongodb_gateway:
+    check_orphan_interval: 7200
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    supported_versions: ["1.8", "2.0"]
+    version_aliases:
+      current: "2.0"
+      deprecated: "1.8"
+
+  postgresql_gateway:
+    check_orphan_interval: 7200
+    token: aaaf4eaa8c1758f66d5cb7adcb24adb9d7
+    supported_versions: ["9.0"]
+    version_aliases:
+      current: "9.0"
+  postgresql_node:
+    production: false
+    supported_versions: ["9.0"]
+    default_version: "9.0"
+
+  syslog_aggregator:
+    address: 10.40.97.24
+    port: 54321
+
+  stager:
+    max_staging_duration: 120
+    max_active_tasks: 20
+    queues:
+    - staging
+
+  uaa:
+    catalina_opts: -Xmx768m -XX:MaxPermSize=256m
+    cc:
+      token_secret: aaabxaiC371JM     # Create your own token secret
+      client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret       
+    clients:
+      dashboard:
+        secret: passwordpassword01
+        scope: openid,dashboard.user
+        authorities: uaa.admin,uaa.resource,tokens.read,scim.read,scim.write
+        authorized-grant-types: client_credentials,authorization_code,refresh_token
+    admin:
+      client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK # Create your own client secret          
+    login:
+      client_secret: $2a$08$dahioBqSkqa1AbLvaqkLoe5W0aOPN3Ia9W0xkeB926G.AZJhq1SsK
+    batch:
+      username: root  # Create a username
+      password: passwordpassword01 # Create a password
+    scim:
+      users:
+      - root|admin|openid,dashboard.user
+
+  acm:
+    user: root
+    password: aaa0rBVCCDcMlkpQ0SrE9XUj 
+
+  login:
+    protocol: http

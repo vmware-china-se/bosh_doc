@@ -1,0 +1,39 @@
+---
+name: microbosh-openstack
+
+env:
+  bosh:
+    password: $6$7E6WyCXtB1OZqR8$.vXKqzjCc4XHbYksZQmji718XWoOvuBBGy8dsloKFfaZ8pe1ecs4dCkcfigoAI80xeaG8s1.ZenwBIR3xcNdQ0
+
+logging:
+  level: DEBUG
+
+network:
+  type: dynamic
+  label: private
+  vip: 10.40.97.19
+
+resources:
+  persistent_disk: 4096
+  cloud_properties:
+    instance_type: m1.micro
+
+cloud:
+  plugin: openstack
+  properties:
+    openstack:
+      auth_url: http://10.40.97.30:5000/v2.0/tokens # CHANGE: OpenStack Auth URL
+      username: admin # CHANGE: OpenStack Username
+      api_key: admin # CHANGE: OpenStack Password
+      tenant: admin # CHANGE: OpenStack Tenant
+      default_key_name: inception
+      default_security_groups: ["default"]
+      private_key: /home/vcap/.ssh/inception.pem
+
+apply_spec:
+  agent:
+    blobstore:
+      address: 10.40.97.19
+    nats:
+      address: 10.40.97.19
+  properties: {}

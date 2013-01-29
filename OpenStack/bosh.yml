@@ -1,0 +1,222 @@
+---
+name: bosh-openstack
+director_uuid: 583c45ad-878e-4b53-8206-0bc9818abfe9
+
+release:
+  name: bosh
+  version: 12
+
+compilation:
+  workers: 3
+  network: default
+  reuse_compilation_vms: true
+  cloud_properties:
+    instance_type: m1.compile
+
+update:
+  canaries: 1
+  canary_watch_time: 90000
+  update_watch_time: 90000
+  max_in_flight: 1
+  max_errors: 1
+
+networks:
+  - name: floating
+    type: vip
+    cloud_properties: {}
+  - name: default
+    type: dynamic
+    dns:
+      - 10.40.97.19 # CHANGE: Micro Bosh IP
+    cloud_properties:
+      security_groups:
+      - default
+
+resource_pools:
+  - name: small
+    network: default
+    size: 8
+    stemcell:
+      name: bosh-stemcell
+      version: 0.7.0
+    cloud_properties:
+      instance_type: m1.micro
+    env:
+      bosh:
+        password: $6$7E6WyCXtB1OZqR8$.vXKqzjCc4XHbYksZQmji718XWoOvuBBGy8dsloKFfaZ8pe1ecs4dCkcfigoAI80xeaG8s1.ZenwBIR3xcNdQ0
+
+jobs:
+  - name: powerdns
+    template: powerdns
+    instances: 1
+    resource_pool: small
+    networks:
+      - name: default
+        default: [dns, gateway]
+      - name: floating
+        static_ips:
+        - 10.40.97.20 # Change: Floating IP 1
+
+  - name: nats
+    template: nats
+    instances: 1
+    resource_pool: small
+    networks:
+      - name: default
+        default: [dns, gateway]
+
+  - name: postgres
+    template: postgres
+    instances: 1
+    resource_pool: small
+    persistent_disk: 4096
+    networks:
+      - name: default
+        default: [dns, gateway]
+
+  - name: redis
+    template: redis
+    instances: 1
+    resource_pool: small
+    networks:
+      - name: default
+        default: [dns, gateway]
+
+  - name: director
+    template: director
+    instances: 1
+    resource_pool: small
+    persistent_disk: 8192
+    networks:
+      - name: default
+        default: [dns, gateway]
+      - name: floating
+        static_ips:
+        - 10.40.97.21 # Change: Floating IP 2
+
+  - name: blobstore
+    template: blobstore
+    instances: 1
+    resource_pool: small
+    persistent_disk: 20480
+    networks:
+      - name: default
+        default: [dns, gateway]
+
+  - name: openstack_registry
+    template: openstack_registry
+    instances: 1
+    resource_pool: small
+    networks:
+      - name: default
+        default: [dns, gateway]
+      - name: floating
+        static_ips:
+        - 10.40.97.32 # Change: Floating IP 3
+
+  - name: health_monitor
+    template: health_monitor
+    instances: 1
+    resource_pool: small
+    networks:
+      - name: default       
+        default: [dns, gateway]
+
+properties:
+  env:
+
+  dns:
+    user: powerdns
+    password: powerdns
+    address: 10.40.97.20 # Change: Floating IP 1
+    replication:
+      basic_auth: replication:QRoqsenPsNGX6
+      user: replication
+      password: powerdns
+    database:
+      name: powerdns
+      port: 5432
+    recursors: 
+      - 10.40.62.11
+    webserver:
+      password: powerdns
+      port: 8081
+
+  nats:
+    user: nats
+    password: nats
+    address:  0.nats.default.bosh-openstack.bosh
+    listen_address: 0.0.0.0
+    port: 4222
+
+  postgres:
+    user: postgres
+    password: postgres
+    address: 0.postgres.default.bosh-openstack.bosh
+    listen_address: 0.0.0.0
+    port: 5432
+    database: bosh
+
+  redis:
+    address: 0.redis.default.bosh-openstack.bosh
+    listen_address: 0.0.0.0
+    port: 25255
+    password: redis
+
+  director:
+    name: bosh-openstack
+    address: 10.40.97.21
+    port: 25555
+    encryption: false
+
+  blobstore:
+    address: 0.blobstore.default.bosh-openstack.bosh
+    port: 25250
+    backend_port: 25251
+    agent:
+      user: agent
+      password: agent
+    director:
+      user: director
+      password: director
+
+  openstack_registry:
+    address: 10.40.97.32  # Change: Floating IP 3
+    http:
+      port: 25777
+      user: registry
+      password: registry
+    db:
+      max_connections: 32
+      pool_timeout: 10
+
+  hm:
+    http:
+      port: 25923
+      user: hm
+      password: hm
+    director_account:
+      user: admin
+      password: admin
+    intervals:
+      prune_events: 30
+      poll_director: 60
+      poll_grace_period: 30
+      log_stats: 60
+      analyze_agents: 60
+      agent_timeout: 180
+      rogue_agent_alert: 180
+    loglevel: info
+    email_notifications: false
+    tsdb_enabled: false
+    pagerduty_enable: false
+    varz_enabled: false
+
+  openstack:
+    auth_url: http://10.40.97.30:5000/v2.0/tokens # CHANGE: OpenStack Auth URL
+    username: admin # CHANGE: OpenStack Username
+    api_key: admin # CHANGE: OpenStack Password
+    tenant: admin # CHANGE: OpenStack Tenant
+    default_key_name: inception # CHANGE: OpenStack default Keyname
+    default_security_groups: ["default"] # CHANGE: OpenStack default Security Group
+    private_key: /home/vcap/.ssh/inception.pem # CHANGE: OpenStack Private Key
