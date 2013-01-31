@@ -38,3 +38,10 @@ cloud:
             clusters:
               - vCluster 	#name of your cluster in your datacenter
 	    resource_pool:  <resource_pool_name> # Resource pool is optional you can run without a resource pool. If so, remove this line.
+apply_spec:
+  agent:
+    blobstore:
+      address: 10.60.98.124	#change to micro bosh ip defined above
+    nats:
+      address: 10.60.98.124	#change to micro bosh ip defined above
+  properties: {}
